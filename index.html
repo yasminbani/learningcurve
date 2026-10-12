@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Learning Curve: a nonlinear regression challenge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2F6F9; --grid:#DCE6EE; --grid2:#C9D6E1; --card:#FFFFFF; --ink:#15233A; --muted:#566880;
+  --pen:#B42D68; --pen2:#0E7A72; --mark:#FFE27A; --good:#1C7A48; --goodbg:#E3F4EA; --bad:#B3261E; --badbg:#FBE7E5;
+  --line:#C4D1DD; --shadow:0 1px 0 #C4D1DD, 0 8px 24px -16px rgba(21,35,58,.35);
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1824; --grid:#182434; --grid2:#203045; --card:#16212F; --ink:#E5ECF4; --muted:#9AACC0;
+    --pen:#F0709F; --pen2:#4CC4B8; --mark:#5E4F12; --good:#6FD39B; --goodbg:#143424; --bad:#FF8C83; --badbg:#3A1A18;
+    --line:#2A3B50; --shadow:0 1px 0 #2A3B50, 0 8px 24px -16px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1824; --grid:#182434; --grid2:#203045; --card:#16212F; --ink:#E5ECF4; --muted:#9AACC0;
+  --pen:#F0709F; --pen2:#4CC4B8; --mark:#5E4F12; --good:#6FD39B; --goodbg:#143424; --bad:#FF8C83; --badbg:#3A1A18;
+  --line:#2A3B50; --shadow:0 1px 0 #2A3B50, 0 8px 24px -16px rgba(0,0,0,.6);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; color:var(--ink); font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:17px; line-height:1.55; background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid2) 1px,transparent 1px),linear-gradient(90deg,var(--grid2) 1px,transparent 1px),
+    linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:120px 120px,120px 120px,24px 24px,24px 24px;
+  min-height:100vh;
+}
+h1,h2,h3{font-family:"Bricolage Grotesque","Atkinson Hyperlegible",system-ui,sans-serif;line-height:1.1;margin:0}
+.wrap{max-width:860px;margin:0 auto;padding:28px 20px 64px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--pen2);outline-offset:2px}
+.btn{border:2px solid var(--ink);background:var(--ink);color:var(--paper);border-radius:10px;padding:10px 18px;font-weight:700}
+.btn:hover{filter:brightness(1.15)}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px}
+.muted{color:var(--muted)}
+.mark{background:linear-gradient(transparent 55%,var(--mark) 55%);padding:0 2px}
+sub,sup{line-height:0}
+
+/* home */
+.hero h1{font-size:clamp(40px,8vw,76px);font-weight:800;letter-spacing:-.02em}
+.hero p.lede{font-size:19px;max-width:58ch;margin:12px 0 0}
+.course{font-weight:700;color:var(--pen);margin-bottom:10px}
+.mapbox{margin:26px 0 8px;padding:10px 10px 4px}
+.map svg{width:100%;height:auto;display:block}
+.map .curve{fill:none;stroke:var(--pen);stroke-width:3.5;stroke-linecap:round}
+.map .pt circle{fill:var(--card);stroke:var(--ink);stroke-width:2.5;transition:r .15s}
+.map .pt.done circle{fill:var(--pen2);stroke:var(--pen2)}
+.map .pt text{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:15px;fill:var(--ink)}
+.map .pt.done text.num{fill:#fff}
+.map .pt:hover circle,.map .pt:focus circle{r:17}
+.map .pt{cursor:pointer}
+.map .pt:focus{outline:none}
+.map .pt:focus-visible circle{stroke:var(--pen2);stroke-width:4}
+.draw{stroke-dasharray:1200;stroke-dashoffset:1200;animation:draw 1.6s ease-out .2s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion: reduce){.draw{animation:none;stroke-dashoffset:0}}
+.namebar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:22px}
+.namebar label{display:block;font-weight:700;margin-bottom:4px}
+.namebar input{border:2px solid var(--ink);border-radius:10px;padding:10px 12px;background:var(--card);min-width:260px;width:100%}
+.namebar .field{flex:1 1 260px}
+.levels{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:10px}
+.lvl{display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:center;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;text-align:left;width:100%}
+.lvl:hover{border-color:var(--ink)}
+.lvl .n{width:40px;height:40px;border-radius:50%;border:2.5px solid var(--ink);display:grid;place-items:center;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:18px}
+.lvl.done .n{background:var(--pen2);border-color:var(--pen2);color:#fff}
+.lvl h3{font-size:19px}
+.lvl p{margin:2px 0 0;font-size:15px;color:var(--muted)}
+.lvl .meta{text-align:right;font-size:14px;color:var(--muted);white-space:nowrap}
+.lvl .meta b{display:block;color:var(--ink);font-size:16px}
+details.teacher{margin-top:28px}
+details.teacher summary{cursor:pointer;font-weight:700;font-family:"Bricolage Grotesque",sans-serif;font-size:19px}
+.runsheet{border-collapse:collapse;width:100%;margin-top:12px;font-size:15px}
+.runsheet td{border-top:1px solid var(--line);padding:8px 8px 8px 0;vertical-align:top}
+.runsheet td:first-child{white-space:nowrap;font-weight:700;width:90px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.score{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:22px}
+.score small{font-family:"Atkinson Hyperlegible",sans-serif;font-weight:400;font-size:14px;color:var(--muted);margin-right:6px}
+
+/* question */
+.qhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.qhead h2{font-size:28px}
+.progress{height:8px;background:var(--grid);border-radius:99px;overflow:hidden;margin:12px 0 18px}
+.progress span{display:block;height:100%;background:var(--pen);border-radius:99px;transition:width .3s}
+.prompt{font-size:19px;margin:0 0 14px}
+.eq{font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:18px;background:var(--paper);border-left:4px solid var(--pen);padding:10px 14px;border-radius:0 8px 8px 0;margin:10px 0 14px;overflow-x:auto}
+.visual{margin:6px 0 14px;overflow-x:auto}
+.visual svg{max-width:100%;height:auto;display:block}
+.minis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.minis figure{margin:0;border:1.5px solid var(--line);border-radius:10px;padding:4px 6px;background:var(--paper)}
+.minis figcaption{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:18px;padding-left:4px}
+.opts{display:grid;gap:10px}
+.opt{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:center;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:12px 14px;font-size:17px}
+.opt:hover:not(:disabled){border-color:var(--ink)}
+.opt .k{width:30px;height:30px;border-radius:8px;background:var(--paper);border:1.5px solid var(--line);display:grid;place-items:center;font-weight:700}
+.opt.right{border-color:var(--good);background:var(--goodbg)}
+.opt.wrong{border-color:var(--bad);background:var(--badbg)}
+.opt:disabled{cursor:default}
+.numrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.numrow input{border:2px solid var(--ink);border-radius:10px;padding:10px 12px;width:180px;font-size:20px;background:var(--card)}
+.numrow .unit{color:var(--muted)}
+.fb{margin-top:16px;border-radius:12px;padding:14px 16px;border:2px solid}
+.fb.ok{border-color:var(--good);background:var(--goodbg)}
+.fb.no{border-color:var(--bad);background:var(--badbg)}
+.fb.hint{border-color:var(--pen2);background:transparent}
+.fb h3{font-size:19px;margin-bottom:4px}
+.fb p{margin:4px 0}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+table.cells{border-collapse:collapse;margin:6px 0 12px;font-size:17px}
+table.cells th,table.cells td{border:1.5px solid var(--line);padding:8px 14px;text-align:center}
+table.cells th{background:var(--paper)}
+
+/* boss */
+.boss-grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width:760px){.boss-grid{grid-template-columns:1.6fr 1fr}}
+.slider{margin:12px 0}
+.slider label{display:flex;justify-content:space-between;font-weight:700}
+.slider label output{font-variant-numeric:tabular-nums;color:var(--pen)}
+.slider input[type=range]{width:100%;accent-color:var(--pen)}
+.stat{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding:8px 0;font-variant-numeric:tabular-nums}
+.stat b{font-size:20px;font-family:"Bricolage Grotesque",sans-serif}
+.meter{height:14px;border-radius:99px;background:var(--grid);overflow:hidden;margin:6px 0 2px}
+.meter span{display:block;height:100%;background:linear-gradient(90deg,var(--pen),var(--pen2));transition:width .15s}
+.log{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:13px;background:var(--paper);border-radius:8px;padding:8px 10px;min-height:110px;white-space:pre;overflow-x:auto;margin-top:8px}
+.chk{display:flex;gap:8px;align-items:center;font-size:15px;margin-top:6px}
+
+/* lightning */
+.timer{height:10px;border-radius:99px;background:var(--grid);overflow:hidden;margin:6px 0 18px}
+.timer span{display:block;height:100%;background:var(--pen)}
+.tfbtns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tfbtns .btn{font-size:22px;padding:18px}
+.statement{font-size:24px;font-family:"Bricolage Grotesque",sans-serif;font-weight:700;line-height:1.25;min-height:4.2em}
+
+/* results */
+.cert{border:3px solid var(--ink);border-radius:16px;background:var(--card);padding:26px;position:relative}
+.cert h2{font-size:40px;letter-spacing:-.01em}
+.big{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:64px;color:var(--pen);line-height:1;margin:18px 0 0}
+.rtable{width:100%;border-collapse:collapse;margin-top:14px}
+.rtable td,.rtable th{text-align:left;padding:8px 6px;border-top:1px solid var(--line)}
+.rtable td:last-child,.rtable th:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:22px;letter-spacing:.12em;font-weight:700}
+@media (max-width:560px){
+  .wrap{padding:18px 14px 48px}
+  .lvl{grid-template-columns:40px 1fr}
+  .lvl .meta{grid-column:2;text-align:left}
+  .lvl .meta b{display:inline;margin-right:6px}
+  .minis{grid-template-columns:1fr 1fr;gap:6px}
+  .statement{font-size:20px}
+  .card{padding:16px}
+}
+</style>
+</head>
+<body>
+<main class="wrap" id="app" aria-live="polite"></main>
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const round = (x, d) => Math.round(x * 10 ** d) / 10 ** d;
+const fmt = (x, d = 4) => { const s = round(x, d).toFixed(d).replace(/\.?0+$/, ""); return (s === "-0" ? "0" : s).replace("-", "−"); };
+const fmtS = (x, d = 4) => (x > 0 ? "+" : "") + fmt(x, d);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const parseNum = s => { s = String(s).trim().replace(/−/g, "-").replace(/\s/g, ""); if (/^-?\d+,\d+$/.test(s)) s = s.replace(",", "."); s = s.replace(/,/g, "").replace(/%$/, ""); const v = parseFloat(s); return isFinite(v) ? v : null; };
+
+/* ---------- storage (per-browser convenience) ---------- */
+const KEY = "learning-curve-ecn4234-v1";
+let store = { name: "", results: {}, started: null };
+try { const raw = localStorage.getItem(KEY); if (raw) store = Object.assign(store, JSON.parse(raw)); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
+
+/* ---------- plotting ---------- */
+function plot(o) {
+  const W = o.w || 520, H = o.h || 300, m = { l: o.small ? 14 : 46, r: 12, t: 12, b: o.small ? 14 : 38 };
+  const [x0, x1] = o.xr, [y0, y1] = o.yr;
+  const sx = x => m.l + (x - x0) / (x1 - x0) * (W - m.l - m.r);
+  const sy = y => H - m.b - (y - y0) / (y1 - y0) * (H - m.t - m.b);
+  const id = "c" + Math.random().toString(36).slice(2, 8);
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label || "scatterplot")}" xmlns="http://www.w3.org/2000/svg">`;
+  g += `<defs><clipPath id="${id}"><rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}"/></clipPath></defs>`;
+  g += `<rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="var(--card)" stroke="var(--line)"/>`;
+  if (!o.small) {
+    (o.xticks || []).forEach(t => { g += `<line x1="${sx(t)}" x2="${sx(t)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--grid)"/><text x="${sx(t)}" y="${H - m.b + 16}" font-size="12" text-anchor="middle" fill="var(--muted)">${t}</text>`; });
+    (o.yticks || []).forEach(t => { g += `<line x1="${m.l}" x2="${W - m.r}" y1="${sy(t)}" y2="${sy(t)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${sy(t) + 4}" font-size="12" text-anchor="end" fill="var(--muted)">${t}</text>`; });
+    if (o.xlab) g += `<text x="${(m.l + W - m.r) / 2}" y="${H - 4}" font-size="13" text-anchor="middle" fill="var(--ink)">${esc(o.xlab)}</text>`;
+    if (o.ylab) g += `<text x="12" y="${(m.t + H - m.b) / 2}" font-size="13" text-anchor="middle" fill="var(--ink)" transform="rotate(-90 12 ${(m.t + H - m.b) / 2})">${esc(o.ylab)}</text>`;
+  }
+  g += `<g clip-path="url(#${id})">`;
+  if (o.resid && o.curve) o.pts.forEach(p => { g += `<line x1="${sx(p[0])}" x2="${sx(p[0])}" y1="${sy(p[1])}" y2="${sy(o.curve(p[0]))}" stroke="var(--pen)" stroke-opacity=".35"/>`; });
+  (o.pts || []).forEach(p => { g += `<circle cx="${sx(p[0]).toFixed(1)}" cy="${sy(p[1]).toFixed(1)}" r="${o.small ? 3 : 3.6}" fill="var(--pen2)" fill-opacity=".75"/>`; });
+  if (o.curve) {
+    let d = ""; const N = 160;
+    for (let i = 0; i <= N; i++) { const x = x0 + (x1 - x0) * i / N, y = o.curve(x); if (!isFinite(y)) continue; const Y = Math.max(-2000, Math.min(4000, sy(y))); d += (d ? "L" : "M") + sx(x).toFixed(1) + " " + Y.toFixed(1); }
+    g += `<path d="${d}" fill="none" stroke="var(--pen)" stroke-width="3" stroke-linecap="round"/>`;
+  }
+  g += `</g></svg>`;
+  return g;
+}
+
+/* ---------- Level 1: shapes ---------- */
+const FORMS = {
+  linear: { g: "A", label: "Linear: Y = β<sub>0</sub> + β<sub>1</sub>X", f: x => 1.5 + 0.72 * x,
+    ex: "The cloud rises at a constant rate. The marginal effect of X is the same everywhere, so a straight line is enough." },
+  quad: { g: "B", label: "Quadratic: Y = β<sub>0</sub> + β<sub>1</sub>X + β<sub>2</sub>X<sup>2</sup>", f: x => 8.6 - 0.27 * (x - 6) ** 2,
+    ex: "Y rises, peaks and turns down. A quadratic (X and X²) is the simplest polynomial that bends once." },
+  cubic: { g: "C", label: "Cubic: Y = β<sub>0</sub> + β<sub>1</sub>X + β<sub>2</sub>X<sup>2</sup> + β<sub>3</sub>X<sup>3</sup>", f: x => 5 + 0.065 * (x - 5.5) ** 3 - 0.55 * (x - 5.5),
+    ex: "The curve changes the direction it bends: it rises, dips in the middle, then rises again. Bending twice needs an X³ term." },
+  linlog: { g: "D", label: "Linear-log: Y = β<sub>0</sub> + β<sub>1</sub>ln(X)", f: x => 1 + 3.2 * Math.log(x),
+    ex: "Y keeps rising, but each extra unit of X adds less. In linear-log, equal percentage changes in X give equal changes in Y, with no upper limit." },
+  loglin: { g: "E", label: "Log-linear: ln(Y) = β<sub>0</sub> + β<sub>1</sub>X", f: x => 0.45 * Math.exp(0.29 * x),
+    ex: "Y grows faster and faster: a constant percentage growth for each unit of X. That is the log-linear (exponential) shape." },
+  negexp: { g: "D", label: "Negative exponential: Y = β<sub>0</sub>[1 − e<sup>−β<sub>1</sub>(X − β<sub>2</sub>)</sup>]", f: x => 8 * (1 - Math.exp(-0.75 * (x - 0.6))),
+    ex: "Y rises quickly then flattens against a ceiling (the asymptote β₀). Only the negative exponential has a built-in maximum; linear-log would keep climbing." }
+};
+function sample(f, n = 42, noise = 0.32) { const p = []; for (let i = 0; i < n; i++) { const x = rand(0.9, 10); p.push([x, f(x) + (Math.random() + Math.random() + Math.random() - 1.5) * noise * 1.6]); } return p; }
+function shapePlot(key, small) { return plot({ pts: sample(FORMS[key].f), xr: [0, 10.5], yr: [-0.5, 10.5], xticks: [0, 2, 4, 6, 8, 10], yticks: [0, 2, 4, 6, 8, 10], xlab: "X", ylab: "Y", small, w: small ? 260 : 520, h: small ? 170 : 300, label: "scatterplot of Y against X" }); }
+function genShapes() {
+  const keys = shuffle(Object.keys(FORMS)); const qs = [];
+  keys.slice(0, 4).forEach(k => {
+    const others = shuffle(Object.keys(FORMS).filter(o => FORMS[o].g !== FORMS[k].g)).slice(0, 3);
+    const opts = shuffle([k, ...others]);
+    qs.push({ type: "mc", prompt: "Which specification fits this scatterplot best?", visual: shapePlot(k), options: opts.map(o => FORMS[o].label), correct: opts.indexOf(k), explain: FORMS[k].ex });
+  });
+  keys.slice(4).forEach(k => {
+    const others = shuffle(Object.keys(FORMS).filter(o => FORMS[o].g !== FORMS[k].g)).slice(0, 3);
+    const order = shuffle([k, ...others]); const L = ["A", "B", "C", "D"];
+    const vis = `<div class="minis">${order.map((o, i) => `<figure><figcaption>${L[i]}</figcaption>${shapePlot(o, true)}</figure>`).join("")}</div>`;
+    qs.push({ type: "mc", prompt: `Which scatterplot was most likely generated by this model?<div class="eq">${FORMS[k].label}</div>`, visual: vis, options: L.map(l => "Plot " + l), correct: order.indexOf(k), explain: FORMS[k].ex });
+  });
+  qs.push({ type: "mc", prompt: "The true relation between Y and X is nonlinear, but you run a straight-line regression of Y on X. The OLS estimate of the effect of X is…",
+    options: ["Biased: the functional form is wrong, so it isn't even right on average", "Unbiased, just less precise", "Unbiased as long as the sample is large", "Biased only if X is a dummy variable"], correct: 0,
+    explain: "A linear regression is mis-specified when the population regression function is nonlinear. The slope it estimates is a compromise across all values of X, so it is biased for the effect at any particular X." });
+  qs.push({ type: "mc", prompt: "In a nonlinear regression function Y = f(X) + u, the expected effect on Y of a change in X…",
+    options: ["Depends on the value of X you start from", "Is always equal to β₁", "Is zero on average", "Cannot be computed"], correct: 0,
+    explain: "The general rule is “before and after”: ΔY = f(X + ΔX) − f(X). Because f bends, the answer depends on where you start. That is the whole point of a nonlinear model." });
+  return shuffle(qs);
+}
+
+/* ---------- Level 2: interpretation ---------- */
+const CTX = [
+  { Y: "test score", X: "district income", Xs: "Income", Ys: "TestScore" },
+  { Y: "hourly wage", X: "years of experience", Xs: "Exper", Ys: "Wage" },
+  { Y: "house price", X: "floor area", Xs: "Area", Ys: "Price" },
+  { Y: "cigarette packs bought", X: "price per pack", Xs: "Price", Ys: "Packs", neg: true }
+];
+const CASES = {
+  lin: { name: "linear", b: () => round(rand(1.2, 4.8), 1), eq: (c, a, b) => `${c.Ys} = ${a} ${b < 0 ? "−" : "+"} ${fmt(Math.abs(b))}·${c.Xs}`,
+    t: (c, b) => `A 1-unit increase in ${c.X} is associated with a change of ${fmtS(b)} units in ${c.Y}`,
+    ex: "Linear in both: ΔY = β₁ΔX, so one unit of X moves Y by β₁ units." },
+  linlog: { name: "linear-log", b: () => round(rand(15, 60), 1), eq: (c, a, b) => `${c.Ys} = ${a} ${b < 0 ? "−" : "+"} ${fmt(Math.abs(b))}·ln(${c.Xs})`,
+    t: (c, b) => `A 1% increase in ${c.X} is associated with a change of ${fmtS(0.01 * b)} units in ${c.Y}`,
+    ex: "ΔY ≈ β₁ × (ΔX/X). A 1% increase means ΔX/X = 0.01, so ΔY ≈ 0.01 × β₁ units." },
+  loglin: { name: "log-linear", b: () => round(rand(0.012, 0.09), 3), eq: (c, a, b) => `ln(${c.Ys}) = ${round(a / 100, 2)} ${b < 0 ? "−" : "+"} ${fmt(Math.abs(b))}·${c.Xs}`,
+    t: (c, b) => `A 1-unit increase in ${c.X} is associated with a ${fmtS(100 * b)}% change in ${c.Y}`,
+    ex: "Δln(Y) ≈ ΔY/Y = β₁ΔX. One unit of X changes Y by about 100 × β₁ percent." },
+  loglog: { name: "log-log", b: () => round(rand(0.15, 1.4), 2), eq: (c, a, b) => `ln(${c.Ys}) = ${round(a / 100, 2)} ${b < 0 ? "−" : "+"} ${fmt(Math.abs(b))}·ln(${c.Xs})`,
+    t: (c, b) => `A 1% increase in ${c.X} is associated with a ${fmtS(b)}% change in ${c.Y}`,
+    ex: "ΔY/Y ≈ β₁ × ΔX/X, so β₁ is an elasticity: a 1% change in X goes with a β₁% change in Y." }
+};
+function genInterpret() {
+  const ck = Object.keys(CASES); const list = shuffle(ck).concat([pick(ck)]); const qs = [];
+  list.forEach(k => {
+    const c = pick(CTX); let b = CASES[k].b(); if (c.neg) b = -b; const a = Math.round(rand(150, 650));
+    const opts = shuffle(ck);
+    qs.push({ type: "mc", prompt: `An estimated ${CASES[k].name} model:<div class="eq">${CASES[k].eq(c, a, b)}</div>Which interpretation of the slope is correct?`,
+      options: opts.map(o => CASES[o].t(c, b)), correct: opts.indexOf(k), explain: CASES[k].ex });
+  });
+  qs.push({ type: "mc", prompt: "In the log-log specification ln(Y) = β₀ + β₁ln(X), the slope β₁ is…",
+    options: ["An elasticity", "The change in Y in units for a 1-unit change in X", "A semi-elasticity: % change in Y per unit of X", "The asymptote of Y"], correct: 0,
+    explain: "Both sides are in logs, so β₁ = (%ΔY)/(%ΔX). That is the definition of an elasticity." });
+  qs.push({ type: "mc", prompt: "Why can TestScore = β₀ + β₁Income + β₂Income² + u be estimated by plain OLS?",
+    options: ["It is linear in the parameters; Income² is just another regressor", "Because Income and Income² are uncorrelated", "Because the relation between TestScore and Income is linear", "It can't; you need nonlinear least squares"], correct: 0,
+    explain: "A polynomial is nonlinear in X but linear in the β’s. Generate Income² as a new variable and run OLS as usual. (Compare the negative exponential, which is nonlinear in its parameters.)" });
+  qs.push({ type: "mc", prompt: `From the lecture: <div class="eq">ln(TestScore) = 6.336 + 0.0554·ln(Income)</div>If district income rises by 1%, test scores…`,
+    options: ["Rise by about 0.0554%", "Rise by about 5.54%", "Rise by about 0.0554 points", "Rise by about 5.54 points"], correct: 0,
+    explain: "Log-log, so 0.0554 is an elasticity: a 1% rise in income goes with a 0.0554% rise in test scores (a factor of 1.000554)." });
+  return shuffle(qs);
+}
+
+/* ---------- Level 3: calculations ---------- */
+function genCalc() {
+  const qs = [];
+  const qf = x => 607.3 + 3.85 * x - 0.0423 * x * x;
+  const QEQ = `<div class="eq">TestScore^ = 607.3 + 3.85·Income − 0.0423·Income<sup>2</sup> &nbsp; <span class="muted">(Income in $1,000s per capita)</span></div>`;
+  const x0 = pick([5, 10, 15, 20, 25, 30, 35, 40]); const dq = qf(x0 + 1) - qf(x0);
+  qs.push({ type: "num", prompt: `Quadratic model:${QEQ}What is the predicted change in test score when district income rises from $${x0},000 to $${x0 + 1},000?`, answer: dq, tol: 0.1, unit: "points",
+    hint: "Compute the predicted score at both incomes and subtract (after minus before).",
+    explain: `ΔY = f(${x0 + 1}) − f(${x0}) = 3.85 − 0.0423 × (${x0 + 1}² − ${x0}²) = 3.85 − 0.0423 × ${2 * x0 + 1} = <b>${fmt(dq, 2)}</b> points. In the lecture the same change from 5 to 6 gave 3.4, but from 45 to 46 almost 0: the effect shrinks as income grows.` });
+  const peak = 3.85 / (2 * 0.0423);
+  qs.push({ type: "num", prompt: `Same quadratic:${QEQ}At what income level (in $1,000s) does the predicted test score reach its maximum?`, answer: peak, tol: 0.6, unit: "thousand $",
+    hint: "Set the slope dY/dX = 3.85 − 2 × 0.0423 × Income equal to zero.",
+    explain: `dY/dX = 3.85 − 0.0846·Income = 0 → Income = 3.85 / 0.0846 ≈ <b>${fmt(peak, 1)}</b>. Past this point the quadratic predicts scores falling with income, which is probably an artefact of the functional form.` });
+  qs.push({ type: "mc", prompt: `Same quadratic:${QEQ}What should you say about the predicted effect of income rising from $65,000 to $66,000?`,
+    options: ["About −1.7 points, and you can report it with confidence", "About −1.7 points mechanically, but that's extrapolation beyond the data (incomes run to about $55k), so don't trust it", "+3.85 points, because β₁ is the effect of income", "Exactly 0, because the curve has peaked"], correct: 1,
+    explain: "3.85 − 0.0423 × 131 ≈ −1.7, but no district in the sample has income near $65k. A polynomial can do strange things outside the range of the data: don’t extrapolate." });
+  const c0 = pick([10, 20, 30]); const cf = x => 600.1 + 5.02 * x - 0.0958 * x * x + 0.000685 * x ** 3; const dc = cf(c0 + 1) - cf(c0);
+  qs.push({ type: "num", prompt: `Cubic model:<div class="eq">TestScore^ = 600.1 + 5.02·Income − 0.0958·Income<sup>2</sup> + 0.000685·Income<sup>3</sup></div>Predicted change in test score when income rises from $${c0},000 to $${c0 + 1},000?`, answer: dc, tol: 0.1, unit: "points",
+    hint: `Before-and-after again: 5.02 × 1 − 0.0958 × (${c0 + 1}² − ${c0}²) + 0.000685 × (${c0 + 1}³ − ${c0}³).`,
+    explain: `5.02 − 0.0958 × ${(c0 + 1) ** 2 - c0 ** 2} + 0.000685 × ${(c0 + 1) ** 3 - c0 ** 3} = <b>${fmt(dc, 2)}</b> points. Individual cubic coefficients are hard to read; computing ΔY at chosen X values is how you interpret them.` });
+  const p = pick([1, 2, 5]); const ll = 0.01 * p * 36.42, llx = 36.42 * Math.log(1 + p / 100);
+  qs.push({ type: "num", prompt: `Linear-log model:<div class="eq">TestScore^ = 557.8 + 36.42·ln(Income)</div>Approximately how much does the predicted test score change if income rises by ${p}%?`, answer: ll, tol: Math.max(0.05, Math.abs(ll - llx) + 0.02), unit: "points",
+    hint: "In linear-log, a 1% increase in X changes Y by 0.01 × β₁.",
+    explain: `ΔY ≈ β₁ × (ΔX/X) = 36.42 × ${p / 100} = <b>${fmt(ll, 3)}</b> points. (Exact: 36.42 × ln(${1 + p / 100}) = ${fmt(llx, 3)}.)` });
+  const q = pick([10, 20]); const pts = 0.0554 * q / 100 * 650;
+  qs.push({ type: "num", prompt: `Log-log model:<div class="eq">ln(TestScore) = 6.336 + 0.0554·ln(Income)</div>A district's income rises by ${q}%. Its test score is currently 650. Approximately how many points does the predicted score rise?`, answer: pts, tol: 0.15, unit: "points",
+    hint: "First find the % change in TestScore (elasticity × % change in income), then apply it to 650.",
+    explain: `%ΔTestScore ≈ 0.0554 × ${q}% = ${fmt(0.0554 * q, 3)}%. Then ${fmt(0.000554 * q, 5)} × 650 ≈ <b>${fmt(pts, 2)}</b> points.` });
+  const k = pick([1, 5, 10]); const pc = 0.284 * k, pcx = 100 * (Math.exp(0.00284 * k) - 1);
+  qs.push({ type: "num", prompt: `Log-linear model:<div class="eq">ln(TestScore) = 6.439 + 0.00284·Income &nbsp; <span class="muted">(Income in $1,000s)</span></div>Approximately what percentage change in test score goes with a $${k},000 rise in income?`, answer: pc, tol: Math.max(0.02, Math.abs(pc - pcx) + 0.02), unit: "%",
+    hint: "In log-linear, one unit of X changes Y by about 100 × β₁ percent.",
+    explain: `100 × 0.00284 × ${k} = <b>${fmt(pc, 3)}%</b>.` });
+  const n0 = pick([10, 20, 30]); const ne = 703.2 * (1 - Math.exp(-0.0552 * (n0 + 34.0)));
+  qs.push({ type: "num", prompt: `Negative exponential growth curve, estimated by nonlinear least squares:<div class="eq">TestScore^ = 703.2 × [1 − e<sup>−0.0552(Income + 34.0)</sup>]</div>What is the predicted test score when income is $${n0},000?`, answer: ne, tol: 1, unit: "points",
+    hint: `Here β₂ = −34.0, so X − β₂ = ${n0} + 34 = ${n0 + 34}. Compute e^(−0.0552 × ${n0 + 34}) first.`,
+    explain: `e<sup>−0.0552 × ${n0 + 34}</sup> = ${fmt(Math.exp(-0.0552 * (n0 + 34)), 4)}, so 703.2 × (1 − ${fmt(Math.exp(-0.0552 * (n0 + 34)), 4)}) ≈ <b>${fmt(ne, 1)}</b>. However high income goes, the prediction can never pass the asymptote 703.2.` });
+  return qs;
+}
+
+/* ---------- Level 4: interactions ---------- */
+function genInteract() {
+  const T = `<table class="cells"><tr><th></th><th>Low STR</th><th>High STR</th></tr><tr><th>Low EL</th><td>664.1</td><td>662.2</td></tr><tr><th>High EL</th><td>645.9</td><td>640.5</td></tr></table>`;
+  const M = `<div class="eq">TestScore = β<sub>0</sub> + β<sub>1</sub>HiSTR + β<sub>2</sub>HiEL + β<sub>3</sub>(HiSTR × HiEL)</div>`;
+  const qs = [];
+  qs.push({ type: "num", prompt: `Group (cell) mean test scores:${T}With the interaction model${M}what is the estimate of β<sub>1</sub>?`, answer: -1.9, tol: 0.05, unit: "",
+    hint: "β₀ is the Low STR, Low EL cell. β₁ is the effect of HiSTR when HiEL = 0.", explain: "β̂₁ = 662.2 − 664.1 = <b>−1.9</b>: moving from low to high STR among low-EL districts." });
+  qs.push({ type: "num", prompt: `Same cell means:${T}${M}What is the estimate of β<sub>2</sub>?`, answer: -18.2, tol: 0.05, unit: "",
+    hint: "β₂ is the effect of HiEL when HiSTR = 0.", explain: "β̂₂ = 645.9 − 664.1 = <b>−18.2</b>: moving from low to high EL among low-STR districts." });
+  qs.push({ type: "num", prompt: `Same cell means:${T}${M}What is the estimate of the interaction coefficient β<sub>3</sub>?`, answer: -3.5, tol: 0.05, unit: "",
+    hint: "β₃ is the extra effect of HiSTR when HiEL = 1: (effect of HiSTR among high EL) − (effect among low EL).",
+    explain: "Among high-EL districts, HiSTR changes scores by 640.5 − 645.9 = −5.4. Among low-EL, by −1.9. β̂₃ = −5.4 − (−1.9) = <b>−3.5</b>." });
+  qs.push({ type: "num", prompt: `Using the estimates <div class="eq">TestScore^ = 664.1 − 1.9·HiSTR − 18.2·HiEL − 3.5·(HiSTR × HiEL)</div>what is the estimated effect of HiSTR in districts where HiEL = 1?`, answer: -5.4, tol: 0.05, unit: "points",
+    hint: "Effect of D₁ = β₁ + β₃ × D₂.", explain: "β₁ + β₃ × 1 = −1.9 − 3.5 = <b>−5.4</b>. Large classes seem to hurt more where many students are English learners." });
+  const DC = `<div class="eq">TestScore^ = 682.2 − 0.97·STR + 5.6·HiEL − 1.28·(STR × HiEL)</div>`;
+  qs.push({ type: "num", prompt: `Binary-continuous interaction:${DC}What is the slope on STR for districts with HiEL = 1?`, answer: -2.25, tol: 0.006, unit: "points per student",
+    hint: "Plug HiEL = 1 in and collect the STR terms.", explain: "For HiEL = 1: (682.2 + 5.6) + (−0.97 − 1.28)·STR. Slope = <b>−2.25</b>. The interaction lets the two groups have different slopes." });
+  qs.push({ type: "num", prompt: `Same model:${DC}What is the intercept of the regression line for districts with HiEL = 1?`, answer: 687.8, tol: 0.05, unit: "",
+    hint: "Intercept for D = 1 is β₀ + β₁.", explain: "682.2 + 5.6 = <b>687.8</b>. So the HiEL = 1 line is 687.8 − 2.25·STR, versus 682.2 − 0.97·STR for HiEL = 0." });
+  const pe = pick([10, 30, 50]); const eff = -1.12 + 0.0012 * pe;
+  qs.push({ type: "num", prompt: `Continuous-continuous interaction:<div class="eq">TestScore^ = 686.3 − 1.12·STR − 0.67·PctEL + 0.0012·(STR × PctEL)</div>What is the estimated effect on test scores of one more student per teacher in a district where PctEL = ${pe}?`, answer: eff, tol: 0.006, unit: "points",
+    hint: "ΔY/ΔSTR = β₁ + β₃ × PctEL.", explain: `−1.12 + 0.0012 × ${pe} = <b>${fmt(eff, 3)}</b>. The effect barely changes with PctEL, and the interaction isn't significant (t = 0.0012/0.019 ≈ 0.06).` });
+  qs.push({ type: "mc", prompt: "In the HiSTR × HiEL regression, the interaction coefficient is −3.5 with a standard error of 3.1. At the 5% level…",
+    options: ["It is not statistically significant: |t| ≈ 1.13 < 1.96", "It is significant: |t| ≈ 3.5 > 1.96", "It is significant because the cell means differ", "You can't test it without the F-statistic"], correct: 0,
+    explain: "t = −3.5 / 3.1 ≈ −1.13. We can’t reject that the effect of class size is the same in high- and low-EL districts, even though the point estimate suggests it’s larger." });
+  qs.push({ type: "mc", prompt: "In Y = β₀ + β₁X₁ + β₂X₂ + β₃(X₁ × X₂), the coefficient β₃ is…",
+    options: ["The increment to the effect of X₁ from a one-unit increase in X₂", "The effect of X₁ when X₂ = 0", "The combined effect of X₁ and X₂", "Always zero unless X₁ and X₂ are dummies"], correct: 0,
+    explain: "ΔY/ΔX₁ = β₁ + β₃X₂, so each extra unit of X₂ changes the effect of X₁ by β₃. (β₁ is the effect of X₁ when X₂ = 0.)" });
+  return qs;
+}
+
+/* ---------- Level 6: lightning ---------- */
+const TF = [
+  ["A polynomial regression in X can be estimated by OLS.", true, "It’s linear in the parameters; powers of X are just extra regressors."],
+  ["In a quadratic model, β₁ alone gives the effect of X on Y.", false, "The effect is β₁ + β₂(2X + ΔX): it depends on X."],
+  ["In a log-log regression the slope is an elasticity.", true, "%ΔY ≈ β₁ × %ΔX."],
+  ["The negative exponential growth model can be estimated by OLS.", false, "It’s nonlinear in its parameters, so you need nonlinear least squares."],
+  ["Under linear-log, test scores keep rising with income without any upper bound.", true, "ln(Income) grows forever, slowly. That’s why the negative exponential was proposed."],
+  ["A polynomial model can predict test scores falling at high incomes.", true, "The quadratic turns down past about $45k, which is probably not real."],
+  ["Testing linear vs. cubic uses a joint F-test on the X² and X³ coefficients.", true, "H₀: β₂ = β₃ = 0. In the lecture, F = 37.69, so linearity is rejected."],
+  ["A statistically significant coefficient is always economically important.", false, "Statistical and real-world importance are different questions."],
+  ["In Y = β₀ + β₁D₁ + β₂D₂ + β₃(D₁×D₂), β₃ is the effect of D₂ when D₁ = 0.", false, "That’s β₂. β₃ is the extra effect of D₁ when D₂ = 1."],
+  ["It’s safe to use the quadratic to predict the effect of income going from $65k to $66k.", false, "That’s extrapolation outside the range of the data."],
+  ["For small changes, ln(Y + ΔY) − ln(Y) ≈ ΔY / Y.", true, "This approximation is what gives logs their percentage interpretation."],
+  ["Stata’s nl command finds estimates by iteratively reducing the sum of squared residuals.", true, "It ‘climbs the hill’ until the SSR stops falling."],
+  ["Adding HiEL × STR lets the two groups’ regression lines have different slopes.", true, "The HiEL = 1 slope becomes β₂ + β₃."],
+  ["You should choose a functional form only by maximising R².", false, "Use judgement, tests and plots of predicted values too."]
+];
+
+/* ---------- Level 5: boss data ---------- */
+const BOSS = (() => {
+  const r = mulberry32(4234), n = 140, X = [], Y = [];
+  for (let i = 0; i < n; i++) { const u = r(); const x = 5 + 50 * Math.pow(u, 1.8); const z = Math.sqrt(-2 * Math.log(r() + 1e-12)) * Math.cos(2 * Math.PI * r()); X.push(x); Y.push(703.2 * (1 - Math.exp(-0.0552 * (x + 34))) + 12 * z); }
+  const f = (b, x) => b[0] * (1 - Math.exp(-b[1] * (x - b[2])));
+  const rmse = b => { let s = 0; for (let i = 0; i < n; i++) { const e = Y[i] - f(b, X[i]); s += e * e; } return { ssr: s, rmse: Math.sqrt(s / (n - 3)) }; };
+  return { n, X, Y, f, rmse, best: null, linlog: null };
+})();
+function solveBoss() {
+  if (BOSS.best) return;
+  let best = [720, 0.05, -30], br = BOSS.rmse(best).rmse, R = [[650, 780], [0.01, 0.15], [-80, 0]];
+  for (let pass = 0; pass < 5; pass++) {
+    const N = 20;
+    for (let a = 0; a <= N; a++) for (let b = 0; b <= N; b++) for (let c = 0; c <= N; c++) {
+      const p = [R[0][0] + (R[0][1] - R[0][0]) * a / N, R[1][0] + (R[1][1] - R[1][0]) * b / N, R[2][0] + (R[2][1] - R[2][0]) * c / N];
+      const v = BOSS.rmse(p).rmse; if (v < br) { br = v; best = p; }
+    }
+    R = R.map((r, k) => { const w = (r[1] - r[0]) / 4; return [best[k] - w, best[k] + w]; });
+  }
+  BOSS.best = { b: best, rmse: br };
+  const L = BOSS.X.map(Math.log), n = BOSS.n, ml = L.reduce((a, b) => a + b) / n, my = BOSS.Y.reduce((a, b) => a + b) / n;
+  let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (L[i] - ml) * (BOSS.Y[i] - my); sxx += (L[i] - ml) ** 2; }
+  const b1 = sxy / sxx, b0 = my - b1 * ml; let s = 0; for (let i = 0; i < n; i++) s += (BOSS.Y[i] - b0 - b1 * L[i]) ** 2;
+  BOSS.linlog = { b0, b1, rmse: Math.sqrt(s / (n - 2)) };
+}
+
+/* ---------- level registry ---------- */
+const LEVELS = [
+  { id: "shapes", title: "Name that curve", blurb: "Match scatterplots to functional forms.", mins: 8, gen: genShapes },
+  { id: "interpret", title: "What does β₁ mean?", blurb: "Interpret slopes in linear and log models.", mins: 10, gen: genInterpret },
+  { id: "calc", title: "Before and after", blurb: "Compute predicted changes from estimated models.", mins: 12, gen: genCalc },
+  { id: "interact", title: "Interactions", blurb: "Dummy and continuous interaction terms.", mins: 12, gen: genInteract },
+  { id: "boss", title: "Climb the hill", blurb: "Fit a negative exponential curve by hand, like nonlinear least squares.", mins: 10, special: "boss" },
+  { id: "lightning", title: "Lightning round", blurb: "12 true-or-false calls, 12 seconds each.", mins: 5, special: "lightning" }
+];
+const totalScore = () => Object.values(store.results).reduce((a, r) => a + (r.score || 0), 0);
+
+/* ---------- home ---------- */
+function home() {
+  stopTimer();
+  const app = $("#app");
+  const W = 760, H = 300, ml = 50, mb = 40, x0 = 0, x1 = 60;
+  const fy = x => 1 - Math.exp(-0.06 * (x + 3));
+  const sx = x => ml + (x - x0) / (x1 - x0) * (W - ml - 20), sy = y => H - mb - y * (H - mb - 20) / 1.05;
+  let d = ""; for (let i = 0; i <= 120; i++) { const x = x1 * i / 120; d += (i ? "L" : "M") + sx(x).toFixed(1) + " " + sy(fy(x)).toFixed(1); }
+  const xs = [4, 13, 23, 33, 44, 55];
+  const pts = LEVELS.map((L, i) => { const done = !!store.results[L.id]; const X = sx(xs[i]), Y = sy(fy(xs[i]));
+    return `<g class="pt ${done ? "done" : ""}" tabindex="0" role="button" data-lvl="${L.id}" aria-label="Level ${i + 1}: ${esc(L.title)}${done ? ", completed" : ""}">
+      <circle cx="${X}" cy="${Y}" r="15"/><text class="num" x="${X}" y="${Y + 5}" text-anchor="middle">${done ? "✓" : i + 1}</text>
+      <text x="${X + (i === 5 ? 6 : 0)}" y="${Y + (i === 5 ? -24 : 36)}" text-anchor="${i === 5 ? "end" : "middle"}" font-weight="500" font-size="14">${esc(L.title)}</text></g>`; }).join("");
+  const anyDone = Object.keys(store.results).length > 0;
+  app.innerHTML = `
+  <header class="hero">
+    <div class="course">ECN 4234 Applied Econometrics</div>
+    <h1>The Learning Curve</h1>
+    <p class="lede">Six levels on nonlinear regression functions: polynomials, logs, interactions and nonlinear least squares. Each level is a point on the curve. Climb it.</p>
+  </header>
+  <div class="card mapbox map">
+    <svg viewBox="0 0 ${W} ${H}" aria-label="Level map drawn as a learning curve">
+      <line x1="${ml}" y1="${H - mb}" x2="${W - 20}" y2="${H - mb}" stroke="var(--ink)" stroke-width="1.5"/>
+      <line x1="${ml}" y1="${H - mb}" x2="${ml}" y2="14" stroke="var(--ink)" stroke-width="1.5"/>
+      <line x1="${ml}" y1="${sy(1)}" x2="${W - 20}" y2="${sy(1)}" stroke="var(--muted)" stroke-dasharray="5 6"/>
+      <text x="${ml + 10}" y="${sy(1) - 8}" text-anchor="start" font-size="13" fill="var(--muted)">asymptote: you, understanding all of chapter 8</text>
+      <text x="${(ml + W) / 2}" y="${H - 12}" text-anchor="middle" font-size="13" fill="var(--ink)">X = minutes of class</text>
+      <text x="18" y="${(H - mb) / 2}" text-anchor="middle" font-size="13" fill="var(--ink)" transform="rotate(-90 18 ${(H - mb) / 2})">Y = understanding</text>
+      <path class="curve draw" d="${d}"/>
+      ${pts}
+    </svg>
+  </div>
+  <div class="namebar">
+    <div class="field"><label for="nm">Your name</label><input id="nm" autocomplete="name" maxlength="40" placeholder="So your results screen shows it" value="${esc(store.name)}"></div>
+    <div class="score"><small>Total score</small>${totalScore()}</div>
+  </div>
+  <ol class="levels">${LEVELS.map((L, i) => { const r = store.results[L.id];
+    return `<li><button class="lvl ${r ? "done" : ""}" data-lvl="${L.id}"><span class="n">${r ? "✓" : i + 1}</span><span><h3>${esc(L.title)}</h3><p>${esc(L.blurb)}</p></span><span class="meta">${r ? `<b>${r.score} pts</b>${r.correct}/${r.total} correct` : `<b>~${L.mins} min</b>not started`}</span></button></li>`; }).join("")}</ol>
+  <div class="actions" style="justify-content:space-between">
+    <button class="btn ghost" id="reset" ${anyDone ? "" : "hidden"}>Start over</button>
+    <button class="btn" id="final" ${anyDone ? "" : "disabled"}>See my results</button>
+  </div>
+  <details class="teacher card">
+    <summary>For the instructor: a 60-minute run sheet</summary>
+    <p class="muted">Share this page's link. Each student plays on their own phone or laptop. Numbers are randomised, so neighbours get different questions. Progress is kept in each student's browser, so a refresh won't lose finished levels.</p>
+    <table class="runsheet">
+      <tr><td>0–5</td><td>Students open the link and enter a name. Recap the “before and after” rule: ΔY = f(X + ΔX) − f(X).</td></tr>
+      <tr><td>5–13</td><td>Level 1. Pause: why do linear-log and the negative exponential look alike but behave differently at high X?</td></tr>
+      <tr><td>13–23</td><td>Level 2. On the board: derive the “1% → 0.01β₁” rule for linear-log.</td></tr>
+      <tr><td>23–35</td><td>Level 3. Discuss the $65k → $66k question: why not extrapolate?</td></tr>
+      <tr><td>35–47</td><td>Level 4. Ask a student to connect the cell-means table to β₁, β₂, β₃.</td></tr>
+      <tr><td>47–55</td><td>Level 5. Who got the lowest RMSE? Compare with Stata's <code>nl</code> iteration log, and with linear-log (slide 38).</td></tr>
+      <tr><td>55–60</td><td>Lightning round, then students show their results screen.</td></tr>
+    </table>
+  </details>`;
+  $("#nm").addEventListener("input", e => { store.name = e.target.value.trim(); save(); });
+  app.querySelectorAll("[data-lvl]").forEach(el => {
+    el.addEventListener("click", () => startLevel(el.dataset.lvl));
+    el.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && el.tagName !== "BUTTON") { e.preventDefault(); startLevel(el.dataset.lvl); } });
+  });
+  $("#final").addEventListener("click", finalScreen);
+  $("#reset").addEventListener("click", () => { if (confirm("Clear all your scores and start again?")) { store.results = {}; store.started = null; save(); home(); } });
+  window.scrollTo(0, 0);
+}
+
+/* ---------- question engine ---------- */
+let run = null;
+function startLevel(id) {
+  if (!store.started) { store.started = Date.now(); save(); }
+  const L = LEVELS.find(l => l.id === id);
+  if (L.special === "boss") return bossLevel();
+  if (L.special === "lightning") return lightning();
+  run = { L, qs: L.gen(), i: 0, score: 0, correct: 0, streak: 0 };
+  question();
+}
+function topbar(title, extra = "") {
+  return `<div class="topbar"><button class="btn ghost" id="back">Back to the map</button><div class="score"><small>Level score</small><span id="lscore">${extra}</span></div></div>`;
+}
+function question() {
+  const { L, qs, i } = run; const q = qs[i]; if (q.hintMsg === undefined) q.hintMsg = typeof q.hint === "string" ? q.hint : ""; q.tries = 0; q.hint = false; q.done = false;
+  const app = $("#app");
+  app.innerHTML = `${topbar(L.title, run.score)}
+  <div class="card">
+    <div class="qhead"><h2>${esc(L.title)}</h2><span class="muted">Question ${i + 1} of ${qs.length}${run.streak >= 2 ? ` · streak ${run.streak}` : ""}</span></div>
+    <div class="progress"><span style="width:${i / qs.length * 100}%"></span></div>
+    <div class="prompt">${q.prompt}</div>
+    ${q.visual ? `<div class="visual">${q.visual}</div>` : ""}
+    <div id="ans"></div>
+    <div id="fb"></div>
+    <div class="actions" id="act"></div>
+  </div>`;
+  $("#back").addEventListener("click", () => { if (confirm("Leave this level? Progress in this level won't be saved.")) home(); });
+  const ans = $("#ans");
+  if (q.type === "mc") {
+    ans.innerHTML = `<div class="opts">${q.options.map((o, k) => `<button class="opt" data-k="${k}"><span class="k">${"ABCD"[k]}</span><span>${o}</span></button>`).join("")}</div>`;
+    ans.querySelectorAll(".opt").forEach(b => b.addEventListener("click", () => answerMC(+b.dataset.k)));
+  } else {
+    ans.innerHTML = `<div class="numrow"><input id="num" inputmode="decimal" autocomplete="off" aria-label="Your answer"><span class="unit">${q.unit || ""}</span><button class="btn" id="chk">Check</button><button class="btn ghost" id="hint">Hint (−30)</button></div>`;
+    const inp = $("#num"); inp.focus({ preventScroll: true });
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") answerNum(); });
+    $("#chk").addEventListener("click", answerNum);
+    $("#hint").addEventListener("click", () => { q.hint = true; $("#hint").disabled = true; $("#fb").innerHTML = `<div class="fb hint"><p><b>Hint:</b> ${q.hintMsg}</p></div>`; });
+  }
+  window.scrollTo(0, 0);
+}
+function award(base) { const bonus = Math.min(run.streak, 5) * 10; run.score += base + bonus; return bonus; }
+function answerMC(k) {
+  const q = run.qs[run.i]; if (q.done) return; q.done = true;
+  const ok = k === q.correct;
+  document.querySelectorAll(".opt").forEach((b, j) => { b.disabled = true; if (j === q.correct) b.classList.add("right"); else if (j === k) b.classList.add("wrong"); });
+  let bonus = 0; if (ok) { run.correct++; run.streak++; bonus = award(100); } else run.streak = 0;
+  feedback(ok, ok ? `+${100 + bonus} points${bonus ? ` (streak bonus ${bonus})` : ""}` : "", q.explain);
+}
+function answerNum() {
+  const q = run.qs[run.i]; if (q.done) return;
+  const v = parseNum($("#num").value); if (v === null) { $("#fb").innerHTML = `<div class="fb hint"><p>Type a number, like 3.4 or −1.9.</p></div>`; return; }
+  q.tries++;
+  const ok = Math.abs(v - q.answer) <= q.tol + 1e-9;
+  if (ok) {
+    q.done = true; run.correct++; run.streak++;
+    const base = (q.tries === 1 ? 100 : 50) - (q.hint ? 30 : 0); const bonus = award(base);
+    lockNum(); feedback(true, `+${base + bonus} points${bonus ? ` (streak bonus ${bonus})` : ""}`, q.explain);
+  } else if (q.tries < 2) {
+    $("#fb").innerHTML = `<div class="fb no"><h3>Not quite</h3><p>${v > q.answer ? "Too high." : "Too low."} You have one more try${q.hint ? "" : ", or take the hint"}.</p></div>`;
+    $("#num").select();
+  } else {
+    q.done = true; run.streak = 0; lockNum();
+    feedback(false, `The answer is ${fmt(q.answer, 3)}${q.unit && q.unit !== "%" ? " " + q.unit : q.unit}.`, q.explain);
+  }
+}
+function lockNum() { $("#num").disabled = true; $("#chk").disabled = true; $("#hint").disabled = true; }
+function feedback(ok, line, explain) {
+  $("#lscore").textContent = run.score;
+  $("#fb").innerHTML = `<div class="fb ${ok ? "ok" : "no"}"><h3>${ok ? "Correct" : "Not this time"}</h3>${line ? `<p><b>${line}</b></p>` : ""}<p>${explain}</p></div>`;
+  const last = run.i === run.qs.length - 1;
+  $("#act").innerHTML = `<button class="btn" id="next">${last ? "Finish level" : "Next question"}</button>`;
+  $("#next").addEventListener("click", () => { if (last) levelEnd(run.L, run.score, run.correct, run.qs.length); else { run.i++; question(); } });
+  $("#next").focus({ preventScroll: true });
+  $("#fb").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+}
+function levelEnd(L, score, correct, total, note = "") {
+  stopTimer();
+  const prev = store.results[L.id];
+  if (!prev || score > prev.score) store.results[L.id] = { score, correct, total };
+  save();
+  const idx = LEVELS.indexOf(L), next = LEVELS[idx + 1];
+  const pct = total ? correct / total : 0;
+  const msg = pct >= 0.85 ? "On the asymptote." : pct >= 0.6 ? "Solid climb. Review the ones you missed." : "Worth another run: numbers change each time.";
+  $("#app").innerHTML = `${topbar(L.title, score)}
+  <div class="card">
+    <h2 style="font-size:32px">${esc(L.title)}: done</h2>
+    <p class="big" style="margin:14px 0 4px">${score}</p><p class="muted" style="margin:0">points · ${correct} of ${total} correct${prev && prev.score > score ? ` · your best is still ${prev.score}` : ""}</p>
+    <p style="font-size:19px">${msg}</p>${note}
+    <div class="actions">
+      <button class="btn ghost" id="again">Play this level again</button>
+      ${next ? `<button class="btn" id="nxt">Next: ${esc(next.title)}</button>` : `<button class="btn" id="fin">See my results</button>`}
+    </div>
+  </div>`;
+  $("#back").addEventListener("click", home);
+  $("#again").addEventListener("click", () => startLevel(L.id));
+  if (next) $("#nxt").addEventListener("click", () => startLevel(next.id)); else $("#fin").addEventListener("click", finalScreen);
+  window.scrollTo(0, 0);
+}
+
+/* ---------- boss level ---------- */
+function bossLevel() {
+  solveBoss();
+  const L = LEVELS.find(l => l.id === "boss");
+  const start = [720, 0.03, -40];
+  const st = { b: start.slice(), resid: false, log: [], iter: 0, bestPts: 0, bestR: Infinity, subs: 0 };
+  const r0 = BOSS.rmse(start).rmse, rb = BOSS.best.rmse;
+  const pts = BOSS.X.map((x, i) => [x, BOSS.Y[i]]);
+  $("#app").innerHTML = `${topbar(L.title, "0")}
+  <div class="card">
+    <div class="qhead"><h2>Climb the hill</h2><span class="muted">Boss level</span></div>
+    <p class="prompt" style="margin-top:12px">Nonlinear least squares means choosing β<sub>0</sub>, β<sub>1</sub>, β<sub>2</sub> to make the sum of squared residuals as small as possible. OLS can't do it in one step, so Stata guesses and improves, step by step. Your turn: drag the sliders to fit these 140 districts.</p>
+    <div class="eq">TestScore = β<sub>0</sub> × [1 − e<sup>−β<sub>1</sub>(Income − β<sub>2</sub>)</sup>] + u</div>
+    <div class="boss-grid">
+      <div>
+        <div class="visual" id="bplot"></div>
+        <label class="chk"><input type="checkbox" id="res"> Show residuals</label>
+      </div>
+      <div>
+        <div class="slider"><label for="s0"><span>β<sub>0</sub> (asymptote)</span> <output id="o0"></output></label><input type="range" id="s0" min="640" max="780" step="0.5"></div>
+        <div class="slider"><label for="s1"><span>β<sub>1</sub> (speed)</span> <output id="o1"></output></label><input type="range" id="s1" min="0.01" max="0.15" step="0.0005"></div>
+        <div class="slider"><label for="s2"><span>β<sub>2</sub> (shift)</span> <output id="o2"></output></label><input type="range" id="s2" min="-80" max="0" step="0.5"></div>
+        <div class="stat"><span>Root MSE</span><b id="rm"></b></div>
+        <div class="stat"><span>Residual SS</span><b id="ss"></b></div>
+        <div style="margin-top:8px"><span class="muted" style="font-size:14px">How close to the bottom of the valley</span><div class="meter"><span id="mtr"></span></div></div>
+        <div class="log" id="log" aria-label="Your iteration log"></div>
+      </div>
+    </div>
+    <div id="fb"></div>
+    <div class="actions"><button class="btn ghost" id="rst">Reset to start values</button><button class="btn" id="sub">Submit my fit</button></div>
+  </div>`;
+  $("#back").addEventListener("click", home);
+  const S = [$("#s0"), $("#s1"), $("#s2")], O = [$("#o0"), $("#o1"), $("#o2")];
+  const draw = () => {
+    const r = BOSS.rmse(st.b);
+    $("#bplot").innerHTML = plot({ pts, curve: x => BOSS.f(st.b, x), resid: st.resid, xr: [0, 60], yr: [585, 725], xticks: [0, 10, 20, 30, 40, 50, 60], yticks: [600, 640, 680, 720], xlab: "District income ($1,000s)", ylab: "Test score", w: 560, h: 340, label: "Scatterplot of test score against income with your fitted curve" });
+    O[0].textContent = fmt(st.b[0], 1); O[1].textContent = st.b[1].toFixed(4); O[2].textContent = fmt(st.b[2], 1);
+    $("#rm").textContent = r.rmse < 1000 ? r.rmse.toFixed(2) : "≫ 1000"; $("#ss").textContent = Math.round(r.ssr).toLocaleString();
+    const prog = Math.max(0, Math.min(1, Math.log(r0 / r.rmse) / Math.log(r0 / rb)));
+    $("#mtr").style.width = (prog * 100).toFixed(1) + "%";
+    return r;
+  };
+  const logIt = () => { const r = BOSS.rmse(st.b); st.log.push(`Iteration ${st.iter++}:  residual SS = ${Math.round(r.ssr).toLocaleString().padStart(10)}`); $("#log").textContent = st.log.slice(-7).join("\n"); };
+  const setSliders = () => S.forEach((s, k) => s.value = st.b[k]);
+  setSliders(); draw(); logIt();
+  S.forEach((s, k) => { s.addEventListener("input", () => { st.b[k] = +s.value; draw(); }); s.addEventListener("change", logIt); });
+  $("#res").addEventListener("change", e => { st.resid = e.target.checked; draw(); });
+  $("#rst").addEventListener("click", () => { st.b = start.slice(); setSliders(); draw(); logIt(); });
+  $("#sub").addEventListener("click", () => {
+    const r = BOSS.rmse(st.b).rmse, gap = r - rb;
+    const p = gap <= 0.05 ? 600 : Math.max(0, Math.round(600 * (1 - Math.log(1 + gap) / Math.log(1 + 25))));
+    st.subs++; if (p > st.bestPts) { st.bestPts = p; st.bestR = r; }
+    $("#lscore").textContent = st.bestPts;
+    const B = BOSS.best.b, ll = BOSS.linlog, llBetter = ll.rmse < rb;
+    const reveal = gap < 1.3 || st.subs >= 3;
+    if (!reveal) {
+      $("#fb").innerHTML = `<div class="fb no"><h3>${gap < 5 ? "Close, but there's lower ground nearby." : "Still on the hillside."}</h3><p>Your RMSE: <b>${r.toFixed(2)}</b> → <b>${p} points</b> (best so far: ${st.bestPts}). Target: get within about 1.3 of the best possible RMSE. ${3 - st.subs} submission${3 - st.subs === 1 ? "" : "s"} left before the answer is revealed.</p><p>${gap < 5 ? "Nudge one slider at a time and watch the residual SS: keep a move only if it goes down. That is exactly what Stata does." : "Start with β₀ (the ceiling the curve flattens toward), then the speed β₁, then the shift β₂."}</p></div>`;
+      $("#sub").textContent = "Submit again"; return;
+    }
+    S.forEach(x => x.disabled = true); $("#sub").disabled = true; $("#rst").disabled = true;
+    const verdict = gap < 0.1 ? "You found the bottom of the valley." : gap < 1 ? "Very close to the NLS answer." : gap < 5 ? "Good, but there's lower ground nearby. Try nudging one slider at a time." : "Still on the hillside. Start with β₀ (the ceiling), then the speed, then the shift.";
+    $("#fb").innerHTML = `<div class="fb ${gap < 1 ? "ok" : "no"}"><h3>${verdict}</h3>
+      <p>Your RMSE: <b>${r.toFixed(2)}</b> → <b>${p} points</b> (best so far: ${st.bestPts}).</p>
+      <p>Nonlinear least squares on this data gives β̂<sub>0</sub> = ${fmt(B[0], 1)}, β̂<sub>1</sub> = ${B[1].toFixed(4)}, β̂<sub>2</sub> = ${fmt(B[2], 1)}, RMSE = <b>${rb.toFixed(2)}</b>.</p>
+      <p>For comparison, OLS linear-log (TestScore = ${fmt(ll.b0, 1)} + ${fmt(ll.b1, 2)}·ln(Income)) has RMSE = <b>${ll.rmse.toFixed(2)}</b>${llBetter ? ", slightly better, just like slide 38 in the lecture. The fancier model doesn't automatically win." : "."}</p>
+      <p class="muted">Think about it: why might the two models fit almost equally well inside the data, but disagree a lot at very high incomes?</p></div>`;
+    if (!$("#finboss")) { const btn = document.createElement("button"); btn.className = "btn"; btn.id = "finboss"; btn.textContent = "Finish level"; document.querySelector(".card .actions").appendChild(btn); btn.addEventListener("click", () => levelEnd(L, st.bestPts, st.bestPts >= 450 ? 1 : 0, 1, `<p class="muted">Counted as correct if your fit scored 450+ (RMSE within about 1.3 of the NLS optimum).</p>`)); }
+  });
+  window.scrollTo(0, 0);
+}
+
+/* ---------- lightning ---------- */
+let timerId = null;
+const stopTimer = () => { if (timerId) { clearInterval(timerId); timerId = null; } };
+function lightning() {
+  const L = LEVELS.find(l => l.id === "lightning");
+  const qs = shuffle(TF).slice(0, 12); let i = 0, score = 0, correct = 0;
+  const SECS = 12;
+  const ask = () => {
+    stopTimer();
+    const q = qs[i]; let left = SECS * 10, done = false;
+    $("#app").innerHTML = `${topbar(L.title, score)}
+    <div class="card">
+      <div class="qhead"><h2>Lightning round</h2><span class="muted">${i + 1} of ${qs.length}</span></div>
+      <div class="timer"><span id="tm" style="width:100%"></span></div>
+      <p class="statement">${esc(q[0])}</p>
+      <div class="tfbtns"><button class="btn" data-v="1">True</button><button class="btn ghost" data-v="0">False</button></div>
+      <div id="fb"></div><div class="actions" id="act"></div>
+    </div>`;
+    $("#back").addEventListener("click", () => { stopTimer(); home(); });
+    const finish = v => {
+      if (done) return; done = true; stopTimer();
+      const ok = v !== null && v === q[1];
+      const pts = ok ? 40 + Math.round(left / 10 * 5) : 0;
+      if (ok) { correct++; score += pts; }
+      $("#lscore").textContent = score;
+      document.querySelectorAll(".tfbtns .btn").forEach(b => b.disabled = true);
+      $("#fb").innerHTML = `<div class="fb ${ok ? "ok" : "no"}"><h3>${v === null ? "Time's up" : ok ? `Correct, +${pts}` : "Wrong"}</h3><p><b>${q[1] ? "True." : "False."}</b> ${esc(q[2])}</p></div>`;
+      const last = i === qs.length - 1;
+      $("#act").innerHTML = `<button class="btn" id="nx">${last ? "Finish level" : "Next"}</button>`;
+      $("#nx").addEventListener("click", () => { if (last) levelEnd(L, score, correct, qs.length); else { i++; ask(); } });
+      $("#nx").focus({ preventScroll: true });
+    };
+    document.querySelectorAll(".tfbtns .btn").forEach(b => b.addEventListener("click", () => finish(b.dataset.v === "1")));
+    timerId = setInterval(() => { left--; const t = $("#tm"); if (t) t.style.width = (left / (SECS * 10) * 100) + "%"; if (left <= 0) finish(null); }, 100);
+    window.scrollTo(0, 0);
+  };
+  ask();
+}
+
+/* ---------- results ---------- */
+function code(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36).toUpperCase().padStart(7, "0").slice(-6); }
+function finalScreen() {
+  stopTimer();
+  const tot = totalScore(), done = LEVELS.filter(l => store.results[l.id]);
+  const mins = store.started ? Math.max(1, Math.round((Date.now() - store.started) / 60000)) : 0;
+  const nm = store.name || "Anonymous climber";
+  const today = new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  const c = code(nm + "|" + tot + "|" + done.map(l => l.id + store.results[l.id].score).join(",") + "|" + new Date().toDateString());
+  $("#app").innerHTML = `<div class="topbar"><button class="btn ghost" id="back">Back to the map</button></div>
+  <div class="cert">
+    <div class="course">ECN 4234 Applied Econometrics · Nonlinear regression functions</div>
+    <h2>${esc(nm)}</h2>
+    <p class="muted" style="margin:4px 0 16px">${today} · ${done.length} of ${LEVELS.length} levels · ${mins} min</p>
+    <p class="big">${tot}</p><p class="muted" style="margin-top:4px">total points</p>
+    <table class="rtable"><tr><th>Level</th><th>Correct</th><th>Points</th></tr>
+      ${LEVELS.map(l => { const r = store.results[l.id]; return `<tr><td>${esc(l.title)}</td><td>${r ? `${r.correct}/${r.total}` : "–"}</td><td>${r ? r.score : "–"}</td></tr>`; }).join("")}
+    </table>
+    <p style="margin-top:18px">Check code <span class="code">${c}</span></p>
+    <p class="muted" style="font-size:14px;margin:0">Show this screen to your instructor or take a screenshot.</p>
+  </div>`;
+  $("#back").addEventListener("click", home);
+  window.scrollTo(0, 0);
+}
+
+home();
+</script>
+</body>
+</html>
